@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\rudwo\\OneDrive\\바탕 화면\\FinalProject\\FinalProject\\FinalProject.csproj",
+      "projectUniqueName": "C:\\Users\\rudwo\\OneDrive\\바탕 화면\\FinalProject\\FinalProject.csproj",
       "projectName": "FinalProject",
-      "projectPath": "C:\\Users\\rudwo\\OneDrive\\바탕 화면\\FinalProject\\FinalProject\\FinalProject.csproj",
+      "projectPath": "C:\\Users\\rudwo\\OneDrive\\바탕 화면\\FinalProject\\FinalProject.csproj",
       "packagesPath": "C:\\Users\\rudwo\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\rudwo\\OneDrive\\바탕 화면\\FinalProject\\FinalProject\\obj\\",
+      "outputPath": "C:\\Users\\rudwo\\OneDrive\\바탕 화면\\FinalProject\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\rudwo\\AppData\\Roaming\\NuGet\\NuGet.Config",
