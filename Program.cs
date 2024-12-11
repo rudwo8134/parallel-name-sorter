@@ -7,137 +7,127 @@ using System.Diagnostics;
 
 namespace ParallelNameSort
 {
-    class Name
+      class SystemInfo
     {
-        public Name(string fname, string lname)
+        public static int GetCoreCount()
         {
-            FirstName = fname;
-            LastName = lname;
+            // Check the CPU core count to use parallel threads and improve performance with correct number of threads
+            // TPL uses .NET's Thread Pool, which creates and distributes tasks based on the number of logical cores.
+            // That's why we count the logical core count to optimize parallel processing. <Checked>
+            return Environment.ProcessorCount;
         }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
+
+        public static int PrintCoreCount()
+        {
+            int coreCount = GetCoreCount();
+            // Print the result
+            Console.WriteLine($"Checking your computer's core count. Your core count is: {coreCount}");
+            // Return the core count to optimize thread count for best performance
+            // This will be used to parallelize the sorting process efficiently
+            // Core count == multi thread count 
+            return coreCount;
+        }
+    }
+
+    public class NameMethod
+    {
+        public string FirstName { get; }
+        public string LastName { get; }
+
+        public NameMethod(string firstName, string lastName)
+        {
+            // Check if the first name or last name is empty and set to "Unknown" if true
+            FirstName = string.IsNullOrWhiteSpace(firstName) ? "Unknown" : firstName;
+            LastName = string.IsNullOrWhiteSpace(lastName) ? "Unknown" : lastName;
+        }
+
+        public override string ToString() => $"{FirstName} {LastName}";
     }
 
     class Program
     {
         static void Main(string[] args)
         {
-            List<Name> names = new List<Name>();
-            List<Name> namesCopy = new List<Name>();  
-            
+          
+           int cores = SystemInfo.PrintCoreCount();
+           List<NameMethod> validNames = new List<NameMethod>();
+           // Names without first name or last name are moved to unsortedNames list
+           // This separation ensures the sorting process continues to work properly
+           // <Note> This is not a project requirement but added as a precautionary measure
+           // When dealing with large datasets, manual verification of each entry becomes impractical
+           // This ensures the program continues running even if some data entries are invalid
+           List<NameMethod> unsortedNames = new List<NameMethod>();
+
+
+            // Step 1: Read names from file => Multi-threading is not used here because the project excludes file reading from time measurement
             using (StreamReader sr = new StreamReader("random names.txt"))
             {
-                string? line;
-                while ((line = sr.ReadLine()) != null)
+                while (sr!.Peek() >= 0)
                 {
-                    string[] s = line.Split(' ');
-                    if (s.Length >= 2)
+                    string[] nameParts = sr!.ReadLine()!.Split(' ');
+                    var firstName = nameParts[0].Trim();
+                    var lastName = nameParts[1].Trim();
+                    
+                    var nameEntry = new NameMethod(firstName, lastName);
+                    // Check if the first name or last name is empty and set to "Unknown" if true from NameMethod class
+                    if (nameEntry.FirstName == "Unknown" || nameEntry.LastName == "Unknown")
                     {
-                        var name = new Name(s[0], s[1]);
-                        names.Add(name);
-                        namesCopy.Add(name);
+                        // Add the name to the unsortedNames list
+                        // We will skip the name sort process for these names since they are not valid
+                        unsortedNames.Add(nameEntry);
+                    }
+                    else
+                    {
+                        validNames.Add(nameEntry);
                     }
                 }
             }
-
-            Console.WriteLine($"Total names to sort: {names.Count}");
-            Console.WriteLine("\nParallel Sorting...");
+            // Starting point of sorting
+            Console.WriteLine("Sorting...");
             Stopwatch stopwatch = Stopwatch.StartNew();
-            var parallelSortedNames = ParallelMergeSort(names);
+            // Step 2: Sort the names
+
+            // End point of sorting
             stopwatch.Stop();
-            Console.WriteLine($"Parallel sort took {stopwatch.ElapsedMilliseconds} milliseconds");
+             Console.WriteLine("Sorting finished...");
+             Console.WriteLine("Code took {0} milliseconds ({1:F6} seconds) to execute",
+                stopwatch.ElapsedMilliseconds,
+                stopwatch.ElapsedMilliseconds / 1000.0);
 
-            Console.WriteLine("\nBuilt-in Sorting...");
-            stopwatch.Restart();
-            var builtInSortedNames = namesCopy.OrderBy(n => n.LastName).ThenBy(n => n.FirstName).ToList();
-            stopwatch.Stop();
-            Console.WriteLine($"Built-in sort took {stopwatch.ElapsedMilliseconds} milliseconds");
+             Console.WriteLine($"Number of valid names: {validNames.Count}");
+             // Print the unsortedNames list
+             Console.WriteLine($"Number of unsorted names: {unsortedNames.Count}");
+             // Print total number of names (valid + unsorted)
+             Console.WriteLine($"Total number of names: {validNames.Count + unsortedNames.Count}");
+        
+             // Example sorting method (using LINQ OrderBy)
+             Console.WriteLine("\nExample sorting method (using LINQ OrderBy):");
+             Stopwatch stopwatch2 = Stopwatch.StartNew();
+             List<NameMethod> sortedNames = validNames.OrderBy(s => s.LastName).ThenBy(s => s.FirstName).ToList();
+             stopwatch2.Stop();
+             Console.WriteLine("Example sorting took {0} milliseconds ({1:F6} seconds) to execute",
+                 stopwatch2.ElapsedMilliseconds,
+                 stopwatch2.ElapsedMilliseconds / 1000.0);
 
-            Console.WriteLine("\nFirst 10 names from Parallel Sort:");
-            foreach (var name in parallelSortedNames.Take(10))
+            // Compare sorting times
+            if (stopwatch.ElapsedMilliseconds < stopwatch2.ElapsedMilliseconds)
             {
-                Console.WriteLine($"{name.LastName}, {name.FirstName}");
+                Console.WriteLine("\nCustom sorting was faster by {0} milliseconds",
+                    stopwatch2.ElapsedMilliseconds - stopwatch.ElapsedMilliseconds);
             }
-
-            Console.WriteLine("\nFirst 10 names from Built-in Sort:");
-            foreach (var name in builtInSortedNames.Take(10))
+            else if (stopwatch.ElapsedMilliseconds > stopwatch2.ElapsedMilliseconds)
             {
-                Console.WriteLine($"{name.LastName}, {name.FirstName}");
-            }
-
-            bool areEqual = parallelSortedNames.Count == builtInSortedNames.Count &&
-                           parallelSortedNames.Zip(builtInSortedNames, (p, b) => 
-                               p.LastName == b.LastName && p.FirstName == b.FirstName)
-                           .All(x => x);
-            
-            Console.WriteLine($"\nBoth sorts produced identical results: {areEqual}");
-
-            Console.WriteLine("\nPress Enter to exit");
-            Console.ReadLine();
-        }
-
-        static List<Name> ParallelMergeSort(List<Name> list)
-        {
-            if (list.Count <= 1) return list;
-
-            int mid = list.Count / 2;
-            var left = list.Take(mid).ToList();
-            var right = list.Skip(mid).ToList();
-
-            if (list.Count > 1000)
-            {
-                Parallel.Invoke(
-                    () => left = ParallelMergeSort(left),
-                    () => right = ParallelMergeSort(right)
-                );
+                Console.WriteLine("\nLINQ sorting was faster by {0} milliseconds",
+                    stopwatch.ElapsedMilliseconds - stopwatch2.ElapsedMilliseconds);
             }
             else
             {
-                left = ParallelMergeSort(left);
-                right = ParallelMergeSort(right);
+                Console.WriteLine("\nBoth sorting methods took the same time");
             }
 
-            return Merge(left, right);
-        }
-
-        static List<Name> Merge(List<Name> left, List<Name> right)
-        {
-            var result = new List<Name>();
-            int leftIndex = 0, rightIndex = 0;
-
-            while (leftIndex < left.Count && rightIndex < right.Count)
-            {
-                int compareResult = string.Compare(left[leftIndex].LastName, right[rightIndex].LastName);
-                if (compareResult == 0)
-                {
-                    compareResult = string.Compare(left[leftIndex].FirstName, right[rightIndex].FirstName);
-                }
-
-                if (compareResult <= 0)
-                {
-                    result.Add(left[leftIndex]);
-                    leftIndex++;
-                }
-                else
-                {
-                    result.Add(right[rightIndex]);
-                    rightIndex++;
-                }
-            }
-
-            while (leftIndex < left.Count)
-            {
-                result.Add(left[leftIndex]);
-                leftIndex++;
-            }
-
-            while (rightIndex < right.Count)
-            {
-                result.Add(right[rightIndex]);
-                rightIndex++;
-            }
-
-            return result;
+            Console.WriteLine("Press Return to exit");
+            Console.ReadLine();
         }
     }
+    
 }
